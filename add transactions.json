@@ -1,0 +1,195 @@
+{
+  "name": "add transactions",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "date",
+              "type": "any"
+            },
+            {
+              "name": "tranactions",
+              "type": "any"
+            },
+            {
+              "name": "credit",
+              "type": "any"
+            },
+            {
+              "name": "debit",
+              "type": "any"
+            }
+          ]
+        }
+      },
+      "id": "c055762a-8fe7-4141-a639-df2372f30060",
+      "typeVersion": 1.1,
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [
+        272,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "17iswCgzKNNJZuQiQQaPTcft3xccuzwnZ7kE-h7-4er4",
+          "mode": "list",
+          "cachedResultName": "Spending Datas",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/17iswCgzKNNJZuQiQQaPTcft3xccuzwnZ7kE-h7-4er4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 696382557,
+          "mode": "list",
+          "cachedResultName": "Bank statements",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/17iswCgzKNNJZuQiQQaPTcft3xccuzwnZ7kE-h7-4er4/edit#gid=696382557"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $('When Executed by Another Workflow').item.json.date }}",
+            "Transactions": "={{ $('When Executed by Another Workflow').item.json.tranactions }}",
+            "Debit": "={{ $('When Executed by Another Workflow').item.json.debit }}",
+            "Balance": "=",
+            "Credit": "={{ $('When Executed by Another Workflow').item.json.credit }}",
+            "Month": "={{ $json.month }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Month",
+              "displayName": "Month",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Transactions",
+              "displayName": "Transactions",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Credit",
+              "displayName": "Credit",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Debit",
+              "displayName": "Debit",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Balance",
+              "displayName": "Balance",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        736,
+        352
+      ],
+      "id": "41a45d3c-44e3-4b72-9bb6-157bb2416231",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "QKy7Z4cNqbSAJeSl",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get date string from input\nconst dateStr = $input.first().json.date;\n\n// Month names lookup\nconst MONTHS = [\n  \"JANUARY\", \"FEBRUARY\", \"MARCH\", \"APRIL\",\n  \"MAY\", \"JUNE\", \"JULY\", \"AUGUST\",\n  \"SEPTEMBER\", \"OCTOBER\", \"NOVEMBER\", \"DECEMBER\"\n];\n\n// Convert date to month name\nfunction extractMonthName(dateStr) {\n  if (!dateStr) return \"\";\n\n  // Replace separators (\"/\" or \"-\") → \"-\"\n  const normalized = dateStr.replace(/[/\\-]/g, \"-\");\n  const parts = normalized.split(\"-\");\n\n  let monthNum;\n\n  // yyyy-mm-dd\n  if (parts[0].length === 4) {\n    monthNum = parseInt(parts[1], 10);\n  }\n  // dd-mm-yyyy\n  else if (parts[2]?.length === 4) {\n    monthNum = parseInt(parts[1], 10);\n  }\n  // mm-dd-yyyy (fallback)\n  else {\n    monthNum = parseInt(parts[0], 10);\n  }\n\n  if (!monthNum || monthNum < 1 || monthNum > 12) return \"\";\n\n  return MONTHS[monthNum - 1];\n}\n\nconst monthName = extractMonthName(dateStr);\n\n// Output\nreturn [\n  {\n    json: {\n      month: monthName\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        352
+      ],
+      "id": "2f136354-d25f-44a0-a276-51adf91cbef8",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        []
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "f3d467a7-4f2e-498b-bd76-213cfc3342c8",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3d9deb964e01ca5bcc382a48e5b794398f01a2185cc80339a038bfb11630cca4"
+  },
+  "id": "lO2zQtwdffiz6wzZ",
+  "tags": []
+}

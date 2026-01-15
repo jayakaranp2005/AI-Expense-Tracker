@@ -1,0 +1,123 @@
+{
+  "name": "unknown_msg",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "Content"
+            }
+          ]
+        }
+      },
+      "id": "c055762a-8fe7-4141-a639-df2372f30060",
+      "typeVersion": 1.1,
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [
+        272,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are receiving this because the main AI agent detected that the user's intent is unknown.\n\nHere is the user's original message.  \nRespond as Mike following your system instructions.\n\nUser message:\n{{ $json.Content }}\n"
+            }
+          ]
+        },
+        "options": {
+          "systemMessage": "You are Mike, an assistant whose ONLY job is to answer generic user questions.\n\nThe main AI agent has already analyzed the user message and determined that the intent is \"unknown\". This is why the \"unknown_msg\" workflow was triggered.\n\nYour job is simple:\n\n1. You will receive a JSON object containing:\n      {\n        \"message\": \"<original user text>\"\n      }\n\n2. DO NOT analyze intent.\n3. DO NOT call tools.\n4. DO NOT output JSON.\n5. DO NOT try to process financial tasks.\n6. DO NOT infer any hidden meaning.\n\nYour ONLY task is:\n- Respond in natural language to the user's message with a friendly introduction and explain what you can do.\n\nBaseline introduction you must always include:\n\"Hey! I'm Mike, your finance assistant. I can help you analyze bank statements, invoices, manual entries, track expenses, and generate summaries.\"\n\nThen:\n- If the user asked \"Who are you?\", \"What do you do?\", \"How does this work?\", etc., answer naturally.\n- If the message is unclear, still respond politely using the baseline intro.\n\nYou must always reply as a normal chat assistant (plain text, no JSON).\n",
+          "temperature": 1
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        480,
+        352
+      ],
+      "id": "55923392-664b-4cd4-bee0-f55e869ea052",
+      "name": "Message a model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "ndkSauvZ23JiFpis",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "47b4e65c-3b96-4515-84f5-44ce14a15309",
+              "name": "response",
+              "value": "={{ $json.content.parts[0].text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        832,
+        352
+      ],
+      "id": "34acc307-0520-4ead-aa6f-2d42515cc43f",
+      "name": "Edit Fields"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "c70465db-b187-40bd-bb18-96f5df816bba",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3d9deb964e01ca5bcc382a48e5b794398f01a2185cc80339a038bfb11630cca4"
+  },
+  "id": "levELv7tY1AIWgIa",
+  "tags": []
+}

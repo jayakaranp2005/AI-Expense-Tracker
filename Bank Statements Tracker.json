@@ -1,0 +1,340 @@
+{
+  "name": "Bank Statements Tracker",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "value": "1HWy29k4B-UvQToiijaW6IypOEkxfyV3b",
+          "mode": "list",
+          "cachedResultName": "Bank Statements",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1HWy29k4B-UvQToiijaW6IypOEkxfyV3b"
+        },
+        "event": "fileCreated",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [
+        -448,
+        0
+      ],
+      "id": "91e30c91-30d8-421c-ac4f-962a051fe191",
+      "name": "Google Drive Trigger",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "pb2qWASvyKZ0jIzn",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -240,
+        0
+      ],
+      "id": "11030828-1ce5-41cd-a184-c4d515e5681f",
+      "name": "Download file",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "pb2qWASvyKZ0jIzn",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        -32,
+        0
+      ],
+      "id": "efbae518-e868-431f-8484-6f94b300edfd",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a0d9d248-fd49-40f0-8a44-586107bd2b63",
+              "name": "response",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        176,
+        0
+      ],
+      "id": "7e055c7b-090c-4046-b08f-0206e1d30c6a",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "={{ $json.response }}"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {
+          "systemMessage": "You are a bank statement extraction assistant.\n\nYour task:\nExtract ALL the bank transactions from the provided raw text.\n\nReturn ONLY valid JSON in the EXACT format below:\n\n{\n  \"transactions\": [\n    {\n      \"date\": \"\",\n      \"description\": \"\",\n      \"debit\": 0,\n      \"credit\": 0,\n      \"balance\": 0\n    }\n  ]\n}\n\nRules:\n1. \"transactions\" must be an array of transaction objects.\n2. Each transaction object must contain:\n   - date (string) format is DD-MM-YYYY\n   - description (string)\n   - debit (number)\n   - credit (number)\n   - balance (number)\n3. Do NOT wrap inside any nested keys.\n4. Do NOT output any text outside the JSON.\n5. If a field is missing, return 0 for numbers and \"\" for strings.\n\nOutput only valid JSON.\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        384,
+        0
+      ],
+      "id": "474b8de6-2571-4b41-8017-f643bca8ed63",
+      "name": "Message a model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "ndkSauvZ23JiFpis",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get Gemini text output safely\nconst text = $input.first().json.content.parts[0].text;\n\n// Clean whitespace\nconst cleaned = text.trim();\n\n// Parse JSON\nlet data;\ntry {\n  data = JSON.parse(cleaned);\n} catch (err) {\n  throw new Error(\"Gemini did not return valid JSON: \" + cleaned);\n}\n\n// Month lookup table\nconst MONTHS = [\n  \"JANUARY\", \"FEBRUARY\", \"MARCH\", \"APRIL\",\n  \"MAY\", \"JUNE\", \"JULY\", \"AUGUST\",\n  \"SEPTEMBER\", \"OCTOBER\", \"NOVEMBER\", \"DECEMBER\"\n];\n\n// Helper: get month name from date formats like: \n// \"02-04-2023\" or \"1/1/2025\" or \"2023-09-18\"\nfunction extractMonthName(dateStr) {\n  if (!dateStr) return \"\";\n\n  // Normalize possible separators\n  const normalized = dateStr.replace(/[/\\-]/g, \"-\");\n\n  const parts = normalized.split(\"-\");\n\n  let monthNum;\n\n  // Cases:\n  // dd-mm-yyyy → month = parts[1]\n  // yyyy-mm-dd → month = parts[1]\n  // mm-dd-yyyy → month = parts[0] (rare but possible)\n\n  if (parts[0].length === 4) {\n    // yyyy-mm-dd\n    monthNum = parseInt(parts[1], 10);\n  } else if (parts[2]?.length === 4) {\n    // dd-mm-yyyy\n    monthNum = parseInt(parts[1], 10);\n  } else {\n    // Fallback mm-dd-yyyy\n    monthNum = parseInt(parts[0], 10);\n  }\n\n  if (isNaN(monthNum) || monthNum < 1 || monthNum > 12) return \"\";\n\n  return MONTHS[monthNum - 1];\n}\n\n// Convert each transaction into separate record with MONTH field\nreturn data.transactions.map(t => ({\n  json: {\n    transaction: {\n      ...t,\n      month: extractMonthName(t.date)\n    }\n  }\n}));\n\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        736,
+        0
+      ],
+      "id": "dca82755-0e60-4907-9587-65f5fa5d07a6",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "17iswCgzKNNJZuQiQQaPTcft3xccuzwnZ7kE-h7-4er4",
+          "mode": "list",
+          "cachedResultName": "Spending Datas",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/17iswCgzKNNJZuQiQQaPTcft3xccuzwnZ7kE-h7-4er4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 696382557,
+          "mode": "list",
+          "cachedResultName": "Bank statements",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/17iswCgzKNNJZuQiQQaPTcft3xccuzwnZ7kE-h7-4er4/edit#gid=696382557"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $json.transaction.date }}",
+            "Debit": "={{ $json.transaction.debit }}",
+            "Credit": "={{ $json.transaction.credit }}",
+            "Balance": "={{ $json.transaction.balance }}",
+            "Transactions": "={{ $json.transaction.description }}",
+            "Month": "={{ $json.transaction.month }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Month",
+              "displayName": "Month",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Transactions",
+              "displayName": "Transactions",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Credit",
+              "displayName": "Credit",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Debit",
+              "displayName": "Debit",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Balance",
+              "displayName": "Balance",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        976,
+        0
+      ],
+      "id": "60b7e587-dad9-4bc2-9928-f5eea5c2f132",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "QKy7Z4cNqbSAJeSl",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Drive Trigger": {
+      "main": [
+        [
+          {
+            "node": "Download file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download file": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "e38b4087-924a-467a-bf3f-ad61c3d62f66",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3d9deb964e01ca5bcc382a48e5b794398f01a2185cc80339a038bfb11630cca4"
+  },
+  "id": "QuciXJj1O02RhteF",
+  "tags": []
+}

@@ -1,0 +1,347 @@
+{
+  "name": "summarize_finances",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "date"
+            },
+            {
+              "name": "period"
+            }
+          ]
+        }
+      },
+      "id": "c055762a-8fe7-4141-a639-df2372f30060",
+      "typeVersion": 1.1,
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [
+        112,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "17iswCgzKNNJZuQiQQaPTcft3xccuzwnZ7kE-h7-4er4",
+          "mode": "list",
+          "cachedResultName": "Spending Datas",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/17iswCgzKNNJZuQiQQaPTcft3xccuzwnZ7kE-h7-4er4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 696382557,
+          "mode": "list",
+          "cachedResultName": "Bank statements",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/17iswCgzKNNJZuQiQQaPTcft3xccuzwnZ7kE-h7-4er4/edit#gid=696382557"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Month",
+              "lookupValue": "={{ $json.period }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        912,
+        352
+      ],
+      "id": "448e8f64-ceb5-42de-8dfc-3a8f6031c55e",
+      "name": "Get row(s) in sheet",
+      "alwaysOutputData": false,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "QKy7Z4cNqbSAJeSl",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract period value\nlet period = $input.first().json.content.parts[0].text || \"\";\n\n// Convert to uppercase\nlet upper = period.toString().toUpperCase();\n\n// Remove wrapping quotes (e.g. \"JANUARY\" → JANUARY)\nupper = upper.replace(/^\"|\"$/g, \"\");\n\n// Return cleaned value\nreturn [\n  {\n    json: {\n      period: upper\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        688,
+        352
+      ],
+      "id": "3c82d374-2e34-4a47-8068-fa7a6c535679",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        352
+      ],
+      "id": "24fda9ed-9085-4b79-aec8-b7a64553cd34",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "15813f8c-bb47-49e3-8b00-6730722c3127",
+              "name": "data",
+              "value": "={{ $json.data }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1328,
+        352
+      ],
+      "id": "ea7d48c2-4a0b-4ea1-91e9-a1446f6f168c",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "={{ $json.data }}"
+            }
+          ]
+        },
+        "options": {
+          "systemMessage": "You are a financial analysis assistant. \nYour role is to analyze a list of financial transactions for a specific month and produce a concise, helpful summary for the user.\n\n-------------------------------------------\nSUMMARY REQUIREMENTS\n-------------------------------------------\n\nYou MUST compute and report the following:\n\n1. **Top 3 expense transactions** (ranked by highest debit amount).\n2. **Total expenses (sum of all debit values)** — use calculator tool.\n3. **Total income (sum of all credit values)** — use calculator tool.\n4. A short, clear summary of the user’s financial activity for that month.\n\n-------------------------------------------\nEXPENSE & INCOME RULES\n-------------------------------------------\n\n• A **debit** value represents an expense.  \n• A **credit** value represents income.  \n• Do NOT mix debit and credit values.  \n• Only debit amounts should be used for ranking \"top 3 expenses\".\n\n-------------------------------------------\nTOOL USAGE (MANDATORY)\n-------------------------------------------\n\nYou MUST use the calculator tool for:\n- Summing all debit values (expense total)\n- Summing all credit values (income total)\n- Any arithmetic comparisons needed to determine top 3 expenses\n\nYou are NOT allowed to manually compute numbers.\n\n-------------------------------------------\nOUTPUT STYLE\n-------------------------------------------\n\n• Output a short, readable explanation.  \n• Include a numbered list for top 3 expenses:\n  1. DESCRIPTION — amount  \n  2. DESCRIPTION — amount  \n  3. DESCRIPTION — amount  \n\n• After that, present:\n  • Total expenses (debit total)  \n  • Total income (credit total)\n\n• Avoid long paragraphs or unnecessary detail.\n\n-------------------------------------------\nINPUT FORMAT\n-------------------------------------------\n\nYou will receive a list of transactions for a specific month.\nEach item includes:\n- description\n- debit (expense amount)\n- credit (income amount)\n\n-------------------------------------------\nTASK\n-------------------------------------------\n\nAnalyze the transactions, compute totals using the calculator tool, identify the top 3 debit-based expenses, and produce a compact monthly financial summary that includes:\n\n1. Top 3 expenses (highest debit values)  \n2. Total debit (expense)  \n3. Total credit (income)  \n4. A brief summary sentence  \n\nFollow these instructions exactly.\n\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        592,
+        736
+      ],
+      "id": "9eb3783a-b9ce-40c3-9462-0332e46465b8",
+      "name": "Message a model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "ndkSauvZ23JiFpis",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.toolCalculator",
+      "typeVersion": 1,
+      "position": [
+        736,
+        944
+      ],
+      "id": "6b163473-9c3a-4ef2-bd5f-2ae840705057",
+      "name": "Calculator"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "96f485a5-e751-46d7-9477-f87509984d7f",
+              "name": "response",
+              "value": "={{ $json.content.parts[0].text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        944,
+        736
+      ],
+      "id": "4aaaaf1f-5adb-4073-aa35-28fe27a989a4",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n      summary: $input.first().json.response  // or whatever node contains it\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1152,
+        736
+      ],
+      "id": "388da835-c9fe-4d23-be94-aada241d1e45",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "={{ $json.period }}"
+            }
+          ]
+        },
+        "options": {
+          "systemMessage": "You must output ONLY the month name as plain text.\n\nCRITICAL RULES:\n- Do NOT output JSON.\n- Do NOT output objects.\n- Do NOT output keys like \"month\".\n- Do NOT output braces { }.\n- Do NOT output quotes.\n- Do NOT output backticks.\n- Do NOT output code blocks.\n- Do NOT explain anything.\n- Do NOT add extra words.\n- Output ONLY the month name (Example: December).\n\nIf the input contains JSON, dates, or text, extract the month and output ONLY the full month name.\nJSON, dates, or text, extract the month and output ONLY the full month name."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        336,
+        352
+      ],
+      "id": "52f8085f-346e-4da7-8936-63990a1d8ae9",
+      "name": "Message a model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "ndkSauvZ23JiFpis",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Message a model1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculator": {
+      "ai_tool": [
+        [
+          {
+            "node": "Message a model",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "f2a51c82-d6bd-41a5-a6de-9a0c6fbe45f8",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3d9deb964e01ca5bcc382a48e5b794398f01a2185cc80339a038bfb11630cca4"
+  },
+  "id": "c3GprTx05JKHtlEX",
+  "tags": []
+}

@@ -1,0 +1,1305 @@
+{
+  "name": "AI EXPENSE TRACKER main",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {
+          "download": true
+        }
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -240,
+        176
+      ],
+      "id": "c558882e-dce0-412e-8743-bca8e64287a0",
+      "name": "Telegram Trigger",
+      "webhookId": "967b731f-e614-4a62-920a-481ffaaf0f91",
+      "executeOnce": false,
+      "credentials": {
+        "telegramApi": {
+          "id": "YmsRIrlQAH3pgx1x",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "inputDataFieldName": "=data",
+        "name": "={{ $json.message.document.file_name }}",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "1-_uEE-R5GXAYDbCNweDBSbufO3OC5sHE",
+          "mode": "list",
+          "cachedResultName": "AI EXPENSE TRACKER ",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1-_uEE-R5GXAYDbCNweDBSbufO3OC5sHE"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        48,
+        -16
+      ],
+      "id": "09299c22-0515-40cf-a8c1-65db88989ca7",
+      "name": "Upload file",
+      "executeOnce": false,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "pb2qWASvyKZ0jIzn",
+          "name": "Google Drive account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        320,
+        176
+      ],
+      "id": "a2ac9924-159c-4b02-a128-abcb31538347",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Telegram Trigger').item.json.message }}",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "Your role is to identify the intent of the user based on two categories:  \n-upload invoice: If the user explicitly implied to upload an invoice document in the current chat message or interaction, or if the document file name contains 'invoice'. \n- upload bank statement: If the user explicitly implied to upload a bank statement document in the current chat message or interaction, or if the  document file name contains 'bank statement'.  "
+            },
+            {
+              "type": "HumanMessagePromptTemplate",
+              "message": "=Identify the intent using the following information received from the user:\n\n\nUser's chat message:{{ $('Telegram Trigger').item.json.message.text }}\n\nFile Name:{{ $('Telegram Trigger').item.json.message.document.file_name }}\n\nFile Upload caption: [{ $('Telegram Trigger').item.json.message.caption}}"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        352,
+        -224
+      ],
+      "id": "f52309ea-e3a1-44b8-af51-847340c7286f",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        352,
+        -16
+      ],
+      "id": "2f1a0bc1-a81e-4dfc-af90-3d78fa73a72d",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "ndkSauvZ23JiFpis",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"upload_intent\": {\n      \"type\": \"string\",\n      \"enum\": [\"invoice\", \"bank_statement\"]\n    }\n  },\n  \"required\": [\"upload_intent\"]\n}\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        496,
+        -48
+      ],
+      "id": "d65d757b-4674-4c8d-94b4-c7da24ebde2d",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c2b165fe-cb19-4c83-b9a7-a0c29a42274e",
+              "leftValue": "={{ $json.output.upload_intent }}",
+              "rightValue": "invoice",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        704,
+        -224
+      ],
+      "id": "eea2e401-cbd6-4f18-b800-08b2dd13c898",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "operation": "move",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $('Upload file').item.json.id }}",
+          "mode": "id"
+        },
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "15NWtW_rz9tSe0QjsHNfdhLgfMpJdozCB",
+          "mode": "list",
+          "cachedResultName": "Invoice",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/15NWtW_rz9tSe0QjsHNfdhLgfMpJdozCB"
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        976,
+        -352
+      ],
+      "id": "ed4a4238-10f8-402f-b354-21d326507641",
+      "name": "Move file",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "pb2qWASvyKZ0jIzn",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "da8f2d78-e0ba-4f67-b229-b746b70d6a5d",
+              "name": "response",
+              "value": "File added to invoice Folder",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1184,
+        -352
+      ],
+      "id": "13818471-49c8-4f8d-9f01-91559e767d55",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "operation": "move",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $('Upload file').item.json.id }}",
+          "mode": "id"
+        },
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "1HWy29k4B-UvQToiijaW6IypOEkxfyV3b",
+          "mode": "list",
+          "cachedResultName": "Bank Statements",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1HWy29k4B-UvQToiijaW6IypOEkxfyV3b"
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        976,
+        -128
+      ],
+      "id": "98acc733-86a5-433b-9f03-527ee6c8d255",
+      "name": "Move file1",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "pb2qWASvyKZ0jIzn",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a0b86bf6-e256-45a2-a116-9abf4a84f1ea",
+              "name": "response",
+              "value": "File uploaded to Bank statements Folder",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1184,
+        -128
+      ],
+      "id": "ceace2dc-0778-44a5-8a4e-6c0f73a55bd4",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "content": "",
+        "height": 400,
+        "width": 576
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        960,
+        -368
+      ],
+      "typeVersion": 1,
+      "id": "bd33139e-788f-4f07-a4d8-7aca1b593915",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "829039cd-b378-416b-8950-fb773d6b51c0",
+              "name": "Chat Context",
+              "value": "=User input: {{ $json.message.text }}\n\nUploaded document details: {{ $json.message.document.file_name}}\n\nUploaded captions: {{ $json.caption }}\n",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -16,
+        448
+      ],
+      "id": "4459cb36-4e0e-4b7f-b5e1-890a5cd3f9b7",
+      "name": "Edit Fields2"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "lO2zQtwdffiz6wzZ",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/lO2zQtwdffiz6wzZ",
+          "cachedResultName": "add transactions"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "date": "={{ $json.date }}",
+            "tranactions": "={{ $json.description }}",
+            "debit": "={{ $json.debit }}",
+            "credit": "={{ $json.credit }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "tranactions",
+              "displayName": "tranactions",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "credit",
+              "displayName": "credit",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "debit",
+              "displayName": "debit",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        2208,
+        1024
+      ],
+      "id": "d7627e65-b168-4ede-b275-c3df5e5c6b1c",
+      "name": "Call 'add transactions'"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the raw text returned by the model\nconst raw =$input.first().json.content.parts[0].text.trim();\n\n// Parse JSON safely\nlet data;\ntry {\n  data = JSON.parse(raw);\n} catch (err) {\n  throw new Error(\"Model did not return valid JSON: \" + raw);\n}\n\n// Return parsed JSON as a single item\nreturn [{ json: data }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1216,
+        464
+      ],
+      "id": "6330a186-e03b-495e-8a3a-7f218160998c",
+      "name": "Code in JavaScript",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are an AI financial assistant named Mike.\nYour role is to determine the message intent through the requests or command from the user's chat message provided to you as follows:\n{{ $('Edit Fields2').item.json['Chat Context'] }}\nIf the user did not specify a command or requests to execute any task that can be carried out using the available tool provided for you, but instead only uploaded a file or document, proceed to respond that the file or document has been successfully uploaded to the intended repository.\n\nIf the user did not upload any type of file or document, but instead specified any type of command or request to execute a specific task or any task, carry out the request or command by using the available tools provided to you.\n\nThink carefully on what specific tools to execute based on the context provided from the user's input.\n\nToday’s date is: {{ DateTime.fromISO($now).toISODate() }} Convert all of the following into ISO dates: - Convert all of the following into ISO dates:\n- \"yesterday\"\n- \"today\"\n- \"tomorrow\"\n- \"last week\"\n- \"last month\"\n- \"2 days ago\"\n- \"3 weeks ago\"\n- \"last Friday\"\n- ANY non-numeric or natural language date\n\nYou MUST NEVER output:\n\"yesterday\", \"today\", \"tomorrow\", \"last week\", or similar.\n\nAlways output:\n\"date\": \"DD-MM-YYYY\""
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {
+          "systemMessage": "You are an AI financial assistant named Mike. \nYour ONLY job is to interpret the user's message and output one valid JSON object. \nYou MUST NOT output any text before or after the JSON. \nYou MUST NOT output code fences, markdown, or explanations. \nYou MUST NOT call tools. \nYou MUST ONLY output one clean JSON object.\n\n---------------------------------\nGENERAL OUTPUT RULES\n---------------------------------\n\n1. Output ONLY one JSON object.\n2. Do NOT use backticks or markdown (no ```json, no ```).\n3. Do NOT add extra text before or after JSON.\n4. Do NOT call tools.\n5. Do NOT describe actions.\n6. Do NOT include English sentences, confirmations, or commentary.\n7. Do NOT include “Used tools”, “Result”, or anything similar.\n8. Keys must always be in lowercase.\n\n---------------------------------\nINTENT CLASSIFICATION\n---------------------------------\n\nYou must determine the user's intent and output ONE of these:\n\n1. add_transaction  \n2. summarize_finances  \n3. missing_info  \n4. unknown  \n\n---------------------------------\nADD_TRANSACTION FORMAT\n---------------------------------\n\nIf the user describes:  \n- spending  \n- buying  \n- paying  \n- transferring money  \n- receiving money  \n- income  \n- any message containing a money amount combined with an action\n\nThen output JSON in this format:\n\n{\n  \"intent\": \"add_transaction\",\n  \"date\": \"<ISO_DATE>\",\n  \"description\": \"<transaction description>\",\n  \"debit\": <number>,\n  \"credit\": <number>\n}\n\nDEBIT RULE:\n- If the user spent money → debit = amount, credit = 0.\n\nCREDIT RULE:\n- If the user received money → credit = amount, debit = 0.\n\nAMOUNT RULE:\n- Must be a number, not a string.\n\nDESCRIPTION RULE:\n- Short description of what the transaction refers to.\n\n---------------------------------\nDATE RULE (CRITICAL)\n---------------------------------\n\nYou MUST convert all relative or natural language dates into absolute ISO dates:\nFormat: DD-MM-YYYY\n\nToday’s date is: {{ DateTime.fromISO($now).toISODate() }}\n\nConvert all of the following into ISO dates:\n- \"yesterday\"\n- \"today\"\n- \"tomorrow\"\n- \"last week\"\n- \"last month\"\n- \"2 days ago\"\n- \"3 weeks ago\"\n- \"last Friday\"\n- ANY non-numeric or natural language date\n\nYou MUST NEVER output:\n\"yesterday\", \"today\", \"tomorrow\", \"last week\", or similar.\n\nAlways output:\n\"date\": \"DD-MM-YYYY\"\n\n---------------------------------\nSUMMARIZE_FINANCES FORMAT\n---------------------------------\n\nIf the user asks about:\n- spending\n- expenses\n- how much they spent\n- totals\n- summaries\n- \"last month\", \"this week\", etc.\n\nOutput:\n\n{\n  \"intent\": \"summarize_finances\",\n  \"period\": \"<extracted time period>\"\n}\n\n---------------------------------\nMISSING INFORMATION FORMAT\n---------------------------------\n\nIf a required field cannot be confidently extracted, output:\n\n{\n  \"intent\": \"missing_info\",\n  \"missing\": \"<field_name>\"\n}\n\n---------------------------------\nUNKNOWN FORMAT\n---------------------------------\n\nIf the user message does not relate to finances, output:\n\n{\n  \"intent\": \"unknown\"\n}\n\nYou must NEVER output backticks.\nYou must NEVER output code fences.\nYou must NEVER output markdown formatting.\nYou must NEVER output json or under any condition.\n\nIf you are about to output a code fence, REMOVE IT and output ONLY the JSON object.\n\nIf your output contains backticks, remove them completely.\nYour final output MUST be ONLY a raw JSON object.\n---------------------------------\nABSOLUTE REQUIREMENTS\n---------------------------------\n\n- Output ONLY the JSON.  \n- No natural language.  \n- No markdown.  \n- No tool calls.  \n- No confirmations.  \n- No greetings.  \n- No explanations.  \n\nEND OF INSTRUCTIONS.\n\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        784,
+        464
+      ],
+      "id": "1b658a36-5e88-4add-84dd-3cfb583a3cc6",
+      "name": "Message a model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "ndkSauvZ23JiFpis",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1536,
+        608
+      ],
+      "id": "282f8917-aa5f-41d7-bade-5216a41307e4",
+      "name": "No Operation, do nothing1"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.intent }}",
+        "options": {
+          "systemMessage": "=You are an AI task executor.\n\nYou will receive a JSON object that has already been analyzed by another model.\nYou MUST NOT reinterpret the user's message.\nYou MUST NOT guess intent.\nYou MUST NOT perform natural language understanding.\n\nYour ONLY job is:\n1. Read the JSON object.\n2. Look at the \"intent\" field.\n3. Call the correct tool.\n4. Output ONLY the tool call JSON.\n5. Stop after the tool call.\n\nINTENT → TOOL RULES:\n\nIf intent = \"add_transaction\":\n    Call add_transaction with:\n      date: input.date\n      description: input.description\n      debit: input.debit\n      credit: input.credit\n\nIf intent = \"summarize_finances\":\n    Call summarize_finances with:\n      period: input.period\n\nIf intent = \"unknown\":\n    Call unknown_msg with:\n      message = input\n\n\n\nABSOLUTE RULES:\n• Only output JSON.\n• Never add extra text.\n• Never wrap in code fences.\n• Never describe or explain tool calls.\n• Stop after calling a tool.\n• Return valid JSON only. Do NOT escape quotes. Do NOT wrap JSON inside strings. Do NOT double-encode JSON. Respond with objects and arrays directly.\n\n ",
+          "returnIntermediateSteps": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        1872,
+        448
+      ],
+      "id": "3c183fc7-286f-4cc6-86de-d97aba0d8c9a",
+      "name": "AI Agent2"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1872,
+        1024
+      ],
+      "id": "9fd3a61f-b65e-4c6e-bf84-1516555811e6",
+      "name": "Google Gemini Chat Model2",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "ndkSauvZ23JiFpis",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Telegram Trigger').item.json.message.message_id }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        1968,
+        816
+      ],
+      "id": "f9aac2ad-8d26-4977-92cb-b1569923a40a",
+      "name": "Simple Memory1"
+    },
+    {
+      "parameters": {
+        "content": "",
+        "height": 176,
+        "width": 560,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        768,
+        432
+      ],
+      "typeVersion": 1,
+      "id": "e6a26a52-0a7c-4507-8e6b-1a26445dc336",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "4b46151c-eeeb-49aa-91d3-1acf9ac157a5",
+              "leftValue": "={{ $json.user_input }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        480,
+        448
+      ],
+      "id": "1518145a-38f5-4b67-91ce-8d9477ca3ee9",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw =$input.first().json['Chat Context'];\n\n// Extract everything after \"User input:\"\nconst match = raw.match(/User input:\\s*([\\s\\S]*?)\\n\\s*Uploaded document details:/);\n\nlet userInput = \"\";\n\nif (match && match[1]) {\n  userInput = match[1].trim();\n}\n\nreturn [{ json: { user_input: userInput }}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        192,
+        448
+      ],
+      "id": "7b9fdebb-6726-43ca-b6a6-4060ccadbd37",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        688,
+        256
+      ],
+      "id": "88aa02b2-9a3f-4ae4-952f-f06be6689223",
+      "name": "No Operation, do nothing2"
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.toolCalculator",
+      "typeVersion": 1,
+      "position": [
+        2720,
+        1008
+      ],
+      "id": "d8577f91-53f5-47b7-a1a8-702eab33baf4",
+      "name": "Calculator"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "c3GprTx05JKHtlEX",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/c3GprTx05JKHtlEX",
+          "cachedResultName": "summarize_finances"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "date": "={{ $today }}",
+            "period": "={{ $json.period }}"
+          },
+          "matchingColumns": [
+            "period"
+          ],
+          "schema": [
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "period",
+              "displayName": "period",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        2528,
+        1008
+      ],
+      "id": "e4c7bd03-5d78-427c-8c6d-841dc4f14d57",
+      "name": "Call summarize_finances tool"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "levELv7tY1AIWgIa",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/levELv7tY1AIWgIa",
+          "cachedResultName": "unknown_msg"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Content": "={{ $('Telegram Trigger').item.json.message.text }}"
+          },
+          "matchingColumns": [
+            "Content"
+          ],
+          "schema": [
+            {
+              "id": "Content",
+              "displayName": "Content",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        2368,
+        1024
+      ],
+      "id": "8e2b5c5d-c593-4def-addb-79f3e8e4ddaa",
+      "name": "Call 'unknown_msg'"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Code in JavaScript').item.json.intent }}",
+                    "rightValue": "unknown",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "8cab0b4c-b164-443d-9546-c01302f4029f"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "d08a74e0-1eb0-46f8-b7fb-78d73a68ebd8",
+                    "leftValue": "={{ $('Code in JavaScript').item.json.intent }}",
+                    "rightValue": "add_transaction",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "7d21596e-2b55-4617-ad11-8c7947aaa65b",
+                    "leftValue": "={{ $('Code in JavaScript').item.json.intent }}",
+                    "rightValue": "summarize_finances",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        3088,
+        432
+      ],
+      "id": "e029c737-fc6f-4896-b00e-6a49998279fe",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.from.id }}",
+        "text": "=Added to the database Successfully!!!\n\nTransaction:{{ $('Code in JavaScript').item.json.description }}\nDate:{{ $('Code in JavaScript').item.json.date }}\nAMOUNT:{{ $('Code in JavaScript').item.json.debit }}\n",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3856,
+        448
+      ],
+      "id": "7bfd474e-e69b-4932-a3b4-15d3dc6e5832",
+      "name": "TEXT TRANSACTIONS",
+      "webhookId": "0ac19f30-6f66-4c5e-aa3b-14dea99af401",
+      "credentials": {
+        "telegramApi": {
+          "id": "YmsRIrlQAH3pgx1x",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.0-flash-lite",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.0-flash-lite"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "={{ $('AI Agent2').item.json.output }}"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {
+          "systemMessage": "You will receive data that may contain JSON encoded inside strings, escaped characters, or double-escaped quotes.\n\nYour task:\n1. Detect whether the field \"output\" contains a JSON string.\n2. Decode that JSON string safely.\n3. Inside it, find the key \"result\".\n4. The \"result\" field is also a JSON string. Decode it too.\n5. Inside that inner object, extract the value of \"response\" or \"msg\".\n6. Return ONLY the clean text message with no slashes, no escaping, and no extra JSON.\n\nReturn ONLY the extracted text. No explanation, no formatting.\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        3472,
+        272
+      ],
+      "id": "c83219dc-92ec-488d-b1b1-85194a69e3cd",
+      "name": "Message a model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "ndkSauvZ23JiFpis",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "={{ $json.output }}"
+            }
+          ]
+        },
+        "options": {
+          "systemMessage": "You will receive an array of objects. \nEach object contains a field named \"output\", and the value of \"output\" is always a JSON object encoded as a string.\n\nYour task:\n1. Read the value inside \"output\".\n2. Decode the JSON string inside \"output\". It may contain escaped characters like \\\\\\\" or \\\\\\\\n or \\\\'.\n3. After decoding, extract the value of the field inside it (example: \"summary\", \"response\", \"msg\", etc.).\n4. Return ONLY the extracted value as clean text with NO escape characters, NO slashes, and NO extra JSON formatting.\n\nIf the decoded JSON contains:\n- \"summary\" → return the summary text\n- \"response\" → return the response text\n- \"msg\" → return the message text\n\nAlways return just the clean text, nothing else.\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        3472,
+        624
+      ],
+      "id": "67ddaeb9-d344-4606-b044-a34fe11d6b36",
+      "name": "Message a model2",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "ndkSauvZ23JiFpis",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $json.content.parts[0].text }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3840,
+        624
+      ],
+      "id": "6043b0ce-3921-47fb-9c14-778440c042ce",
+      "name": "SUMMARY",
+      "webhookId": "7d0be78c-650e-41ab-a74d-e350b2f794c5",
+      "credentials": {
+        "telegramApi": {
+          "id": "YmsRIrlQAH3pgx1x",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $json.content.parts[0].text }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3840,
+        272
+      ],
+      "id": "cde45ea7-8063-422b-aa0c-3db5692e0ae0",
+      "name": "OTHER TEXT",
+      "webhookId": "b4528412-4312-4607-ae1b-21e343338ba5",
+      "credentials": {
+        "telegramApi": {
+          "id": "YmsRIrlQAH3pgx1x",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.from.id }}",
+        "text": "={{ $json.response }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1392,
+        -352
+      ],
+      "id": "e21aa068-a2c7-40d4-85ee-f2b5eb87e67e",
+      "name": "Invoice",
+      "webhookId": "b39daddd-3e78-4fd3-8e99-1f4f0dd5206f",
+      "credentials": {
+        "telegramApi": {
+          "id": "YmsRIrlQAH3pgx1x",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.from.id }}",
+        "text": "={{ $json.response }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1392,
+        -128
+      ],
+      "id": "347d2da3-6ea8-4cdd-a0be-e42c8f86f0d8",
+      "name": "Bank statements",
+      "webhookId": "dabcc873-a60d-4d85-a71c-65ab9cbbc74e",
+      "credentials": {
+        "telegramApi": {
+          "id": "YmsRIrlQAH3pgx1x",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Upload file",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Edit Fields2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload file": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "No Operation, do nothing": {
+      "main": [
+        []
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Move file",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Move file1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Move file": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Move file1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "Bank statements",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields2": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call 'add transactions'": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory1": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent2": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "No Operation, do nothing2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculator": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call summarize_finances tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call 'unknown_msg'": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Message a model1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "TEXT TRANSACTIONS",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Message a model2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model1": {
+      "main": [
+        [
+          {
+            "node": "OTHER TEXT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model2": {
+      "main": [
+        [
+          {
+            "node": "SUMMARY",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1f3fe8ce-aee0-4557-b7cc-f386f3561b9a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3d9deb964e01ca5bcc382a48e5b794398f01a2185cc80339a038bfb11630cca4"
+  },
+  "id": "4EBncOlmdI9TZG12",
+  "tags": []
+}
